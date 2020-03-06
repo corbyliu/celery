@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 # Create your models here.
 
 
@@ -30,6 +30,19 @@ class UserManager(BaseUserManager):
 
         return self._create_user(username, password, **kwargs)
 
+    def _get_queryset_by_user_id(self, user_id, **kwargs):
+        user = self.all().filter(id=user_id)
+        return user
+
+    def modify_user(self, user_id, **kwargs):
+        user = self._get_queryset_by_user_id(user_id)
+        user.update(**kwargs)
+        return user
+
+    def delete_user(self, user_id, **kwargs):
+        user = self._get_queryset_by_user_id(user_id)
+        user.delete()
+
 
 class User(AbstractBaseUser):
 
@@ -41,7 +54,7 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email', 'phone']
 
-    object = UserManager()
+    objects = UserManager()
 
     class Meta:
         db_table = 'user_pro'
@@ -64,3 +77,31 @@ class User(AbstractBaseUser):
     @property
     def is_staff(self):
         return self.is_admin
+
+
+class Person(models.Model):
+    name = models.CharField(max_length=128)
+
+    class Meta:
+        db_table = 'person'
+
+    def __str__(self):
+        return self.name
+
+
+class Group(models.Model):
+    name = models.CharField(max_length=128)
+    members = models.ManyToManyField(Person, through='Membership')
+
+    class Meta:
+        db_table = 'group'
+
+
+class Membership(models.Model):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    date_joined = models.DateField()
+    invite_reason = models.CharField(max_length=64)
+
+    class Meta:
+        db_table = 'membership'
